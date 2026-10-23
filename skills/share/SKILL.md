@@ -16,7 +16,7 @@ bun share.ts put ./demo --ns thinkrail/demos --title "Extensions demo"
 | Command | What it does |
 | --- | --- |
 | `put <path...> [--ns <ns>] [--name <slug>] [--title <text>]` | New share at `<ns>/<slug>-<random4>/` and prints its URL. A dir uploads its contents, a file lands at the share root. `--name` defaults to the first input's name. |
-| `put <path...> --exact ...` | Same, without the random suffix: `<ns>/<slug>/`. Use only when the user wants a clean, guessable URL. Fails if the slug is taken. |
+| `put <path...> --exact ...` | Same, without the random suffix: `<ns>/<slug>/`. Use when the user asks for a clean or guessable URL, or names the exact path. Fails if the slug is taken: to update that share, use `--to`; to publish something new, pick another `--name`. |
 | `put <path...> --to <ns>/<slug>` | Replaces an existing share in place: same URL, files missing from the new upload are deleted. Use it when updating something already linked. |
 | `ls [ns] [--json]` | Shares, newest first: `ref\turl\tfiles\tbytes\tupdated\ttitle`. |
 | `rm <ns>/<slug>` | Deletes one share and all its files. |
@@ -36,7 +36,7 @@ Pick the namespace from what the share is for. Lowercase segments only:
 
 ## Guardrails
 
-- **Every share is public.** Anyone with the URL can open it. The random suffix keeps URLs unguessable and `robots.txt` blocks indexing, but nothing more. Publish what the user asked to share; for anything with secrets, customer data, or internal dashboards, ask first.
+- **Every share is public.** Anyone with the URL can open it. The random suffix keeps URLs unguessable and `robots.txt` blocks indexing, but nothing more. `--exact` URLs are guessable, so use them only for things the user is fine having found. Publish what the user asked to share; for anything with secrets, customer data, or internal dashboards, ask first.
 - **GitHub plays only its own video uploads inline.** A share `.mp4` shows as a link in PRs and issues. Images and GIFs embed fine with `![](url)`.
 
 **Done when** the URL you report came from the command's own output and `curl -sS -o /dev/null -w '%{http_code}' "<url>"` returned `200`.

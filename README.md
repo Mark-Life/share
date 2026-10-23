@@ -9,7 +9,7 @@ bun skills/share/scripts/share.ts put ./demo --ns myrepo/demos
 
 ## How it works
 
-- Keys are `<namespace>/<slug>-<random4>/<file>`. A `_meta.json` in each prefix marks it as a share.
+- Keys are `<namespace>/<slug>-<random4>/<file>`, or `<namespace>/<slug>/<file>` with `put --exact`. A `_meta.json` in each prefix marks it as a share.
 - `GET /<path>/` serves `index.html`; `/<path>` redirects to `/<path>/` when it is a folder. HTML is `no-cache`, other files are cached for an hour. Byte ranges work, so videos seek.
 - `/_admin` lists every share by namespace, behind basic auth (any user, `SHARE_ADMIN_PASSWORD` as password).
 - An R2 lifecycle rule deletes everything under `junk/` after 30 days.

@@ -27,6 +27,7 @@ export default Alchemy.Stack(
     const worker = yield* Cloudflare.Worker("Worker", {
       name: "share",
       main: "./src/worker.ts",
+      domain: "share.mark-life.com",
       compatibility: { date: "2026-10-01" },
       env: {
         BUCKET: bucket,

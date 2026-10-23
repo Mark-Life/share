@@ -16,6 +16,7 @@ bun share.ts put ./demo --ns thinkrail/demos --title "Extensions demo"
 | Command | What it does |
 | --- | --- |
 | `put <path...> [--ns <ns>] [--name <slug>] [--title <text>]` | New share at `<ns>/<slug>-<random4>/` and prints its URL. A dir uploads its contents, a file lands at the share root. `--name` defaults to the first input's name. |
+| `put <path...> --exact ...` | Same, without the random suffix: `<ns>/<slug>/`. Use only when the user wants a clean, guessable URL. Fails if the slug is taken. |
 | `put <path...> --to <ns>/<slug>` | Replaces an existing share in place: same URL, files missing from the new upload are deleted. Use it when updating something already linked. |
 | `ls [ns] [--json]` | Shares, newest first: `ref\turl\tfiles\tbytes\tupdated\ttitle`. |
 | `rm <ns>/<slug>` | Deletes one share and all its files. |

@@ -188,6 +188,7 @@ const put = async ({
   name,
   to,
   title,
+  exact,
 }: {
   client: Client;
   config: Record<EnvKey, string>;
@@ -196,6 +197,7 @@ const put = async ({
   name: string | undefined;
   to: string | undefined;
   title: string | undefined;
+  exact: boolean;
 }) => {
   if (inputs.length === 0) fail("put needs at least one file or directory");
   if (to && (ns || name)) fail("--to replaces an existing share; do not combine it with --ns or --name");
@@ -204,7 +206,12 @@ const put = async ({
   const firstInput = basename(resolve(inputs[0] ?? ""));
   const prefix = to
     ? parsePrefix(to)
-    : (`${parseNamespace(ns ?? JUNK_NS)}/${slugify(name ?? firstInput)}-${randomSuffix()}/` as Prefix);
+    : (`${parseNamespace(ns ?? JUNK_NS)}/${slugify(name ?? firstInput)}${exact ? "" : `-${randomSuffix()}`}/` as Prefix);
+
+  // without the suffix two puts can land on one prefix; `--to` is the explicit overwrite
+  if (exact && !to && (await listKeys({ client, prefix })).length > 0) {
+    fail(`${prefix.slice(0, -1)} already exists: use --to ${prefix.slice(0, -1)} to replace it`);
+  }
 
   const previous = to ? await readMeta({ client, prefix }) : undefined;
   if (to && !previous) fail(`no share at ${to}: run "share ls" to find it`);
@@ -286,11 +293,12 @@ const rm = async ({ client, ref }: { client: Client; ref: string | undefined }) 
 
 const HELP = `share: publish files and folders to a public URL
 
-  share put <path...> [--ns <namespace>] [--name <slug>] [--title <text>]
+  share put <path...> [--ns <namespace>] [--name <slug>] [--title <text>] [--exact]
   share put <path...> --to <namespace>/<slug>      replace an existing share, same URL
   share ls [namespace] [--json]
   share rm <namespace>/<slug>
 
+--exact drops the random suffix: guessable URL, fails if the slug is taken.
 --ns defaults to "${JUNK_NS}", which is deleted after 30 days.
 Global: --env <path> reads credentials from another env file.`;
 
@@ -302,6 +310,7 @@ const main = async () => {
       name: { type: "string" },
       to: { type: "string" },
       title: { type: "string" },
+      exact: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
       env: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
@@ -315,7 +324,7 @@ const main = async () => {
 
   switch (command) {
     case "put":
-      return put({ client, config, inputs: args, ns: values.ns, name: values.name, to: values.to, title: values.title });
+      return put({ client, config, inputs: args, ns: values.ns, name: values.name, to: values.to, title: values.title, exact: values.exact });
     case "ls":
       return ls({ client, config, filter: args[0], json: values.json });
     case "rm":

@@ -5,7 +5,7 @@ description: "Use to publish a file or folder at a public URL: screenshots, GIFs
 
 # Share
 
-`scripts/share.ts` publishes files and folders to `share.mark-life.com` (R2 behind a Worker). A folder with `index.html` is served as a site, so relative CSS, JS, and assets work. Run it with Bun from the skill's `scripts/` dir:
+`scripts/share.ts` publishes files and folders to `share.mark-life.com` (R2 storage, served by a Worker). Uploads go straight to R2 over its S3 API. A folder with `index.html` is served as a site, so relative CSS, JS, and assets work. Run it with Bun from the skill's `scripts/` dir:
 
 ```bash
 bun share.ts put ./demo --ns thinkrail/demos --title "Extensions demo"
@@ -31,12 +31,11 @@ Pick the namespace from what the share is for. Lowercase segments only:
 
 ## Credentials
 
-`SHARE_URL` and `SHARE_TOKEN` come from `~/.agents/.env.local`, overridden by the process environment or `--env <path>`. If the CLI says they must be set, report it as a setup gap and stop. Keep the token out of chat, logs, and files you write. The same token is the `/_admin` password, where the user browses all shares.
+`SHARE_URL`, `SHARE_S3_ENDPOINT`, `SHARE_BUCKET`, `SHARE_ACCESS_KEY_ID` and `SHARE_SECRET_ACCESS_KEY` come from `~/.agents/.env.local`, overridden by the process environment or `--env <path>`. If the CLI says they must be set, report it as a setup gap and stop. Keep the keys out of chat, logs, and files you write. The user browses all shares at `/_admin`.
 
 ## Guardrails
 
 - **Every share is public.** Anyone with the URL can open it. The random suffix keeps URLs unguessable and `robots.txt` blocks indexing, but nothing more. Publish what the user asked to share; for anything with secrets, customer data, or internal dashboards, ask first.
-- **100 MB per file**: the Worker request limit. Compress larger videos first.
 - **GitHub plays only its own video uploads inline.** A share `.mp4` shows as a link in PRs and issues. Images and GIFs embed fine with `![](url)`.
 
 **Done when** the URL you report came from the command's own output and `curl -sS -o /dev/null -w '%{http_code}' "<url>"` returned `200`.

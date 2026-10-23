@@ -3,14 +3,20 @@ import { readdir, stat } from "node:fs/promises";
 import { homedir, hostname } from "node:os";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
+import { S3Client } from "bun";
 import { JUNK_NS, META_FILE, type ShareMeta } from "./meta.ts";
 
 const ENV_FILE = join(homedir(), ".agents", ".env.local");
-const ENV_KEYS = ["SHARE_URL", "SHARE_TOKEN"] as const;
+const ENV_KEYS = [
+  "SHARE_URL",
+  "SHARE_S3_ENDPOINT",
+  "SHARE_BUCKET",
+  "SHARE_ACCESS_KEY_ID",
+  "SHARE_SECRET_ACCESS_KEY",
+] as const;
 const SKIP = new Set([".DS_Store", ".git", "node_modules", META_FILE]);
 const CONCURRENCY = 8;
 const SUFFIX_LENGTH = 4;
-const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
 type EnvKey = (typeof ENV_KEYS)[number];
 type Prefix = string & { __brand: "Prefix" };
@@ -43,38 +49,30 @@ interface ListPage {
   cursor?: string;
 }
 
-/** Thin client for the Worker's `/_api` routes; the Worker owns the R2 binding. */
+/** R2 over its S3 API, so uploads go straight to storage and skip the Worker. */
 const makeClient = (config: Record<EnvKey, string>) => {
-  const base = config.SHARE_URL.replace(/\/+$/, "");
-  const call = async (path: string, init: RequestInit = {}) => {
-    const res = await fetch(`${base}/_api${path}`, {
-      ...init,
-      headers: { ...init.headers, authorization: `Bearer ${config.SHARE_TOKEN}` },
-    });
-    if (res.status === 401) fail("SHARE_TOKEN was rejected by the server");
-    return res;
-  };
-  const objectPath = (key: string) => `/object/${key.split("/").map(encodeURIComponent).join("/")}`;
-  const ensureOk = async (res: Response, what: string) => {
-    if (!res.ok) fail(`${what}: ${res.status} ${await res.text()}`);
-    return res;
-  };
+  const s3 = new S3Client({
+    accessKeyId: config.SHARE_ACCESS_KEY_ID,
+    secretAccessKey: config.SHARE_SECRET_ACCESS_KEY,
+    endpoint: config.SHARE_S3_ENDPOINT,
+    bucket: config.SHARE_BUCKET,
+  });
 
   return {
     put: async ({ key, body, type }: { key: string; body: Blob | string; type: string }) => {
-      await ensureOk(await call(objectPath(key), { method: "PUT", body, headers: { "content-type": type } }), `upload ${key}`);
+      await s3.write(key, body, { type });
     },
     get: async (key: string) => {
-      const res = await call(objectPath(key));
-      return res.status === 404 ? undefined : ensureOk(res, `read ${key}`);
+      const file = s3.file(key);
+      return (await file.exists()) ? file : undefined;
     },
-    delete: async (key: string) => {
-      await ensureOk(await call(objectPath(key), { method: "DELETE" }), `delete ${key}`);
-    },
-    list: async ({ prefix, cursor }: { prefix: string; cursor: string | undefined }) => {
-      const query = new URLSearchParams({ prefix, ...(cursor ? { cursor } : {}) });
-      const res = await ensureOk(await call(`/list?${query}`), "list");
-      return (await res.json()) as ListPage;
+    delete: (key: string) => s3.delete(key),
+    list: async ({ prefix, cursor }: { prefix: string; cursor: string | undefined }): Promise<ListPage> => {
+      const page = await s3.list({ prefix, continuationToken: cursor, maxKeys: 1000 });
+      return {
+        objects: (page.contents ?? []).map((o) => ({ key: o.key, size: o.size ?? 0 })),
+        cursor: page.isTruncated ? page.nextContinuationToken : undefined,
+      };
     },
   };
 };
@@ -214,7 +212,6 @@ const put = async ({
 
   await runPool(uploads, async ({ path, key }) => {
     const file = Bun.file(path);
-    if (file.size > MAX_FILE_BYTES) fail(`${path} is over 100 MB, the Worker request limit`);
     await client.put({ key: `${prefix}${key}`, body: file, type: file.type });
   });
 

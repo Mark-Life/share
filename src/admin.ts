@@ -1,5 +1,4 @@
 import { JUNK_NS, META_FILE, type ShareMeta } from "../skills/share/scripts/meta.ts";
-import { timingSafeEqual } from "./auth.ts";
 import type { Env } from "./worker.ts";
 
 interface ShareRow {
@@ -8,6 +7,12 @@ interface ShareRow {
   bytes: number;
   meta: ShareMeta | undefined;
 }
+
+const timingSafeEqual = (a: string, b: string) => {
+  const enc = new TextEncoder();
+  const [x, y] = [enc.encode(a), enc.encode(b)];
+  return x.byteLength === y.byteLength && crypto.subtle.timingSafeEqual(x, y);
+};
 
 const unauthorized = () =>
   new Response("Unauthorized", {
@@ -103,7 +108,7 @@ td,th{padding:.4rem .5rem;border-bottom:1px solid #eee;text-align:left;vertical-
 };
 
 export const handleAdmin = async ({ request, env }: { request: Request; env: Env; url: URL }) => {
-  if (!isAuthorized(request, env.SHARE_TOKEN)) return unauthorized();
+  if (!isAuthorized(request, env.ADMIN_PASSWORD)) return unauthorized();
   const rows = await collectShares(env.BUCKET);
   return new Response(renderPage(rows), {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },

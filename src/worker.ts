@@ -1,11 +1,9 @@
 import { META_FILE } from "../skills/share/scripts/meta.ts";
 import { handleAdmin } from "./admin.ts";
-import { handleApi } from "./api.ts";
 
 export interface Env {
   BUCKET: R2Bucket;
-  /** Bearer token for `/_api`, and the password for `/_admin`. */
-  SHARE_TOKEN: string;
+  ADMIN_PASSWORD: string;
 }
 
 const HTML_CACHE = "no-cache";
@@ -56,7 +54,6 @@ const serveObject = async ({ request, env, url }: { request: Request; env: Env; 
 export default {
   fetch: async (request, env) => {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/_api/")) return handleApi({ request, env, url });
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Method not allowed", { status: 405 });
     }

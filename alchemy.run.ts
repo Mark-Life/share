@@ -30,7 +30,7 @@ export default Alchemy.Stack(
       compatibility: { date: "2026-10-01" },
       env: {
         BUCKET: bucket,
-        SHARE_TOKEN: Config.Redacted("SHARE_TOKEN"),
+        ADMIN_PASSWORD: Config.Redacted("SHARE_ADMIN_PASSWORD"),
       },
     });
 

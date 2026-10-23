@@ -1,5 +1,6 @@
 import { META_FILE } from "../skills/share/scripts/meta.ts";
 import { handleAdmin } from "./admin.ts";
+import { FAVICON_SVG, LANDING_HTML } from "./landing.ts";
 
 export interface Env {
   BUCKET: R2Bucket;
@@ -17,6 +18,9 @@ const contentRange = (range: R2Range, size: number) => {
   const length = "length" in range && range.length !== undefined ? range.length : size - offset;
   return `bytes ${offset}-${offset + length - 1}/${size}`;
 };
+
+const page = (body: string, contentType: string) =>
+  new Response(body, { headers: { "content-type": contentType, "cache-control": "public, max-age=3600" } });
 
 const notFound = () => new Response("Not found", { status: 404 });
 
@@ -58,6 +62,8 @@ export default {
       return new Response("Method not allowed", { status: 405 });
     }
     if (url.pathname === "/robots.txt") return new Response(ROBOTS);
+    if (url.pathname === "/") return page(LANDING_HTML, "text/html; charset=utf-8");
+    if (url.pathname === "/favicon.svg") return page(FAVICON_SVG, "image/svg+xml");
     if (url.pathname === "/_admin") return handleAdmin({ request, env, url });
     return serveObject({ request, env, url });
   },
